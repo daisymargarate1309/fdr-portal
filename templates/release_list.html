@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card"><h2>All release / refund requests</h2>
+<table><tr><th>FDR</th><th>Institution</th><th>Reason</th><th>Requested</th><th>Status</th><th></th></tr>
+{% for r in reqs %}<tr><td>{{ r.fdr.fdr_number }}</td><td>{{ r.fdr.institution.code }}</td><td>{{ r.reason }}</td>
+<td>{{ r.requested_at|date:"d M Y" }}</td><td><span class="badge {{ r.status|lower }}">{{ r.get_status_display }}</span></td>
+<td><a href="{% url 'fdr_detail' r.fdr.pk %}">Open</a></td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No requests.</td></tr>{% endfor %}</table></div>
+{% endblock %}

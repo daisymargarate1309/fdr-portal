@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card"><h2>Audit trail (latest 200)</h2>
+<table><tr><th>When</th><th>User</th><th>FDR</th><th>Action</th><th>Detail</th></tr>
+{% for l in logs %}<tr><td>{{ l.timestamp|date:"d M Y H:i" }}</td><td>{{ l.user.username }}</td><td>{{ l.fdr.fdr_number }}</td><td>{{ l.action }}</td><td>{{ l.detail }}</td></tr>
+{% empty %}<tr><td colspan="5" class="empty">Empty.</td></tr>{% endfor %}</table></div>
+{% endblock %}
