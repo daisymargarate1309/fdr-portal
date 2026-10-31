@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:400px;margin:40px auto">
+<h2>Login</h2>
+{% if form.errors %}<div class="msg error">Wrong username or password.</div>{% endif %}
+<form method="post">{% csrf_token %}
+<p><input name="username" placeholder="Username" autofocus style="width:100%"></p>
+<p><input name="password" type="password" placeholder="Password" style="width:100%"></p>
+<button class="btn">Login</button>
+</form>
+<p class="empty">Demo: officer / officer123 &nbsp;|&nbsp; inst1 / inst123</p>
+</div>
+{% endblock %}
