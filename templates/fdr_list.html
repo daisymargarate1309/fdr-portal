@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card"><h2>FDR / Security Deposit Records</h2>
+<form class="row" method="get">
+<input name="q" value="{{ q }}" placeholder="Search FDR no, bank, institution">
+<select name="state"><option value="">All states</option>
+{% for s in states %}<option {% if s == st %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+<button class="btn">Search</button> <a class="btn gray" href="{% url 'fdr_create' %}">+ Submit FDR</a>
+</form><br>
+<table><tr><th>FDR No</th><th>Institution</th><th>Bank</th><th>Amount</th><th>Issued</th><th>Maturity</th><th>State</th><th>Verification</th><th></th></tr>
+{% for f in fdrs %}<tr><td>{{ f.fdr_number }}</td><td>{{ f.institution.code }}</td><td>{{ f.bank_name }}</td>
+<td>{{ f.amount }}</td><td>{{ f.issue_date }}</td><td>{{ f.maturity_date }}</td>
+<td><span class="badge {{ f.state|lower }}">{{ f.state }}</span></td>
+<td><span class="badge {{ f.verification|lower }}">{{ f.get_verification_display|truncatechars:22 }}</span></td>
+<td><a href="{% url 'fdr_detail' f.pk %}">Open</a></td></tr>
+{% empty %}<tr><td colspan="9" class="empty">No records found.</td></tr>{% endfor %}</table></div>
+{% endblock %}

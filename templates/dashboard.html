@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="cards">
+{% for label, n, css in cards %}<div class="stat {{ css }}"><b>{{ n }}</b><span>{{ label }}</span></div>{% endfor %}
+</div>
+
+<div class="card"><h2>Alerts: expiring and overdue FDRs</h2>
+{% if attention %}<table><tr><th>FDR</th><th>Institution</th><th>Maturity</th><th>Alert</th><th></th></tr>
+{% for f in attention %}<tr><td>{{ f.fdr_number }}</td><td>{{ f.institution.code }}</td><td>{{ f.maturity_date }}</td>
+<td class="alert">{{ f.alert }}</td><td><a href="{% url 'fdr_detail' f.pk %}">Open</a></td></tr>{% endfor %}</table>
+{% else %}<p class="empty">No FDRs need attention.</p>{% endif %}</div>
+
+<div class="grid2">
+<div class="card"><h2>Pending verification</h2>
+{% for f in pending_verification %}<p><a href="{% url 'fdr_detail' f.pk %}">{{ f.fdr_number }}</a> - {{ f.institution.code }}, {{ f.bank_name }}</p>
+{% empty %}<p class="empty">Nothing pending.</p>{% endfor %}</div>
+<div class="card"><h2>Discrepancies / flagged</h2>
+{% for f in flagged %}<p><a href="{% url 'fdr_detail' f.pk %}">{{ f.fdr_number }}</a>
+{% if f.issues %}<span class="alert">- {{ f.issues|join:", " }}</span>{% else %}<span class="alert">- flagged by officer</span>{% endif %}</p>
+{% empty %}<p class="empty">No discrepancies.</p>{% endfor %}</div>
+</div>
+
+<div class="card"><h2>Pending release requests</h2>
+{% for r in pending_releases %}<p><a href="{% url 'fdr_detail' r.fdr.pk %}">{{ r.fdr.fdr_number }}</a> - {{ r.fdr.institution.code }}: {{ r.reason }}</p>
+{% empty %}<p class="empty">No pending requests.</p>{% endfor %}</div>
+{% endblock %}
