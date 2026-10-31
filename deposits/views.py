@@ -1,12 +1,17 @@
+import csv
+from datetime import date
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .forms import FDRForm
 from .bank_service import verify_fdr
+from .forms import FDRForm
 from .models import AuditLog, FDR, ReleaseRequest
 
 
@@ -131,6 +136,28 @@ def fdr_verify(request, pk):
     return redirect("fdr_detail", pk=pk)
 
 
+@officer_required
+@require_POST
+def fdr_bank_verify(request, pk):
+    fdr = get_object_or_404(FDR, pk=pk, status=FDR.ACTIVE)
+    result = verify_fdr(fdr.fdr_number, fdr.bank_name, fdr.amount,
+                        fdr.issue_date, fdr.maturity_date)
+    if result["status"] == "MATCH":
+        fdr.verification = FDR.VERIFIED
+        fdr.officer_remarks = f"Bank confirmed ({result['reference']}): all details match."
+        notify = messages.success
+        msg = "Bank verification successful. FDR confirmed by bank."
+    else:
+        fdr.verification = FDR.FLAGGED
+        fdr.officer_remarks = f"Bank check ({result['reference']}): " + "; ".join(result["issues"])
+        notify = messages.error
+        msg = "Bank verification failed. " + "; ".join(result["issues"])
+    fdr.save()
+    log(request.user, "Bank verification: " + result["status"], fdr, fdr.officer_remarks)
+    notify(request, msg)
+    return redirect("fdr_detail", pk=pk)
+
+
 @login_required
 def fdr_renew(request, pk):
     old = get_object_or_404(visible_fdrs(request.user), pk=pk, status=FDR.ACTIVE)
@@ -204,23 +231,47 @@ def release_decide(request, pk):
 def audit_list(request):
     return render(request, "audit_list.html", {
         "logs": AuditLog.objects.select_related("user", "fdr")[:200]})
+
+
+REPORTS = {
+    "pending-verification": ("Pending verifications",
+        lambda f: f.status == FDR.ACTIVE and f.verification == FDR.SUBMITTED),
+    "upcoming-maturities": ("Upcoming maturities (within reminder window)",
+        lambda f: f.status == FDR.ACTIVE
+        and 0 <= f.days_left <= getattr(settings, "REMINDER_DAYS", 60)),
+    "overdue": ("Matured / overdue, action needed",
+        lambda f: f.status == FDR.ACTIVE and f.days_left < 0),
+    "missing-documents": ("Missing documents",
+        lambda f: f.status == FDR.ACTIVE and not f.document),
+    "flagged": ("Flagged / discrepancies",
+        lambda f: f.status == FDR.ACTIVE and (f.verification == FDR.FLAGGED or bool(f.issues))),
+    "all": ("All records", lambda f: True),
+}
+
+
 @officer_required
-@require_POST
-def fdr_bank_verify(request, pk):
-    fdr = get_object_or_404(FDR, pk=pk, status=FDR.ACTIVE)
-    result = verify_fdr(fdr.fdr_number, fdr.bank_name, fdr.amount,
-                        fdr.issue_date, fdr.maturity_date)
-    if result["status"] == "MATCH":
-        fdr.verification = FDR.VERIFIED
-        fdr.officer_remarks = f"Bank confirmed ({result['reference']}): all details match."
-        notify = messages.success
-        msg = "Bank verification successful. FDR confirmed by bank."
-    else:
-        fdr.verification = FDR.FLAGGED
-        fdr.officer_remarks = f"Bank check ({result['reference']}): " + "; ".join(result["issues"])
-        notify = messages.error
-        msg = "Bank verification failed. " + "; ".join(result["issues"])
-    fdr.save()
-    log(request.user, "Bank verification: " + result["status"], fdr, fdr.officer_remarks)
-    notify(request, msg)
-    return redirect("fdr_detail", pk=pk)
+def reports(request):
+    fdrs = list(FDR.objects.select_related("institution"))
+    items = [(key, title, sum(1 for f in fdrs if test(f)))
+             for key, (title, test) in REPORTS.items()]
+    return render(request, "reports.html", {"items": items})
+
+
+@officer_required
+def report_download(request, kind):
+    if kind not in REPORTS:
+        raise Http404("Unknown report")
+    title, test = REPORTS[kind]
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="fdr_{kind}_{date.today()}.csv"'
+    w = csv.writer(response)
+    w.writerow(["Institution code", "Institution", "FDR number", "Bank", "Amount",
+                "Issue date", "Maturity date", "Days left", "State", "Verification",
+                "Document", "Issues", "Officer remarks"])
+    for f in FDR.objects.select_related("institution"):
+        if test(f):
+            w.writerow([f.institution.code, f.institution.name, f.fdr_number, f.bank_name,
+                        f.amount, f.issue_date, f.maturity_date, f.days_left, f.state,
+                        f.get_verification_display(), "yes" if f.document else "no",
+                        "; ".join(f.issues), f.officer_remarks])
+    return response

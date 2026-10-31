@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card"><h2>Management reports</h2>
+<p class="empty">Live reports for officials. Each report downloads as a CSV file that opens in Excel.</p>
+<table><tr><th>Report</th><th>Records</th><th></th></tr>
+{% for key, title, n in items %}<tr><td>{{ title }}</td><td>{{ n }}</td>
+<td><a class="btn" href="{% url 'report_download' key %}">Download CSV</a></td></tr>{% endfor %}
+</table></div>
+{% endblock %}

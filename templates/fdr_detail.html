@@ -17,6 +17,7 @@
 <tr><th>Officer remarks</th><td>{{ fdr.officer_remarks|default:"-" }}</td></tr>
 {% if fdr.renewed_from %}<tr><th>Renewal of</th><td><a href="{% url 'fdr_detail' fdr.renewed_from.pk %}">{{ fdr.renewed_from.fdr_number }}</a></td></tr>{% endif %}
 </table></div>
+
 {% if user.is_staff and fdr.status == "ACTIVE" %}
 <div class="card"><h2>Officer scrutiny</h2>
 <form class="row" method="post" action="{% url 'fdr_verify' fdr.pk %}">{% csrf_token %}

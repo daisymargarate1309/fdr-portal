@@ -12,5 +12,7 @@ urlpatterns = [
     path("fdrs/<int:pk>/release/", views.release_request, name="release_request"),
     path("releases/", views.release_list, name="release_list"),
     path("releases/<int:pk>/decide/", views.release_decide, name="release_decide"),
+    path("reports/", views.reports, name="reports"),
+    path("reports/<slug:kind>/", views.report_download, name="report_download"),
     path("audit/", views.audit_list, name="audit_list"),
 ]
