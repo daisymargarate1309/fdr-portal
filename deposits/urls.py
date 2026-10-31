@@ -7,6 +7,7 @@ urlpatterns = [
     path("fdrs/new/", views.fdr_create, name="fdr_create"),
     path("fdrs/<int:pk>/", views.fdr_detail, name="fdr_detail"),
     path("fdrs/<int:pk>/verify/", views.fdr_verify, name="fdr_verify"),
+    path("fdrs/<int:pk>/bank-verify/", views.fdr_bank_verify, name="fdr_bank_verify"),
     path("fdrs/<int:pk>/renew/", views.fdr_renew, name="fdr_renew"),
     path("fdrs/<int:pk>/release/", views.release_request, name="release_request"),
     path("releases/", views.release_list, name="release_list"),

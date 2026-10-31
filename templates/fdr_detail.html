@@ -17,13 +17,15 @@
 <tr><th>Officer remarks</th><td>{{ fdr.officer_remarks|default:"-" }}</td></tr>
 {% if fdr.renewed_from %}<tr><th>Renewal of</th><td><a href="{% url 'fdr_detail' fdr.renewed_from.pk %}">{{ fdr.renewed_from.fdr_number }}</a></td></tr>{% endif %}
 </table></div>
-
 {% if user.is_staff and fdr.status == "ACTIVE" %}
 <div class="card"><h2>Officer scrutiny</h2>
 <form class="row" method="post" action="{% url 'fdr_verify' fdr.pk %}">{% csrf_token %}
 <input name="remarks" placeholder="Remarks (optional)" size="40">
 <button class="btn green" name="action" value="verify">Mark confirmed by bank</button>
 <button class="btn red" name="action" value="flag">Flag for scrutiny</button>
+</form>
+<form method="post" action="{% url 'fdr_bank_verify' fdr.pk %}" style="margin-top:12px">{% csrf_token %}
+<button class="btn">Verify with bank (mock API)</button>
 </form></div>
 {% endif %}
 

@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import FDRForm
+from .bank_service import verify_fdr
 from .models import AuditLog, FDR, ReleaseRequest
 
 
@@ -203,3 +204,23 @@ def release_decide(request, pk):
 def audit_list(request):
     return render(request, "audit_list.html", {
         "logs": AuditLog.objects.select_related("user", "fdr")[:200]})
+@officer_required
+@require_POST
+def fdr_bank_verify(request, pk):
+    fdr = get_object_or_404(FDR, pk=pk, status=FDR.ACTIVE)
+    result = verify_fdr(fdr.fdr_number, fdr.bank_name, fdr.amount,
+                        fdr.issue_date, fdr.maturity_date)
+    if result["status"] == "MATCH":
+        fdr.verification = FDR.VERIFIED
+        fdr.officer_remarks = f"Bank confirmed ({result['reference']}): all details match."
+        notify = messages.success
+        msg = "Bank verification successful. FDR confirmed by bank."
+    else:
+        fdr.verification = FDR.FLAGGED
+        fdr.officer_remarks = f"Bank check ({result['reference']}): " + "; ".join(result["issues"])
+        notify = messages.error
+        msg = "Bank verification failed. " + "; ".join(result["issues"])
+    fdr.save()
+    log(request.user, "Bank verification: " + result["status"], fdr, fdr.officer_remarks)
+    notify(request, msg)
+    return redirect("fdr_detail", pk=pk)
