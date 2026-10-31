@@ -1,3 +1,7 @@
 from django.contrib import admin
+from .models import AuditLog, FDR, Institution, ReleaseRequest
 
-# Register your models here.
+admin.site.register(Institution)
+admin.site.register(FDR)
+admin.site.register(ReleaseRequest)
+admin.site.register(AuditLog)
