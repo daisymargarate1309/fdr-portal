@@ -28,6 +28,7 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "deposits.roles.roles_context",
     ]},
 }]
 WSGI_APPLICATION = "fdrportal.wsgi.application"

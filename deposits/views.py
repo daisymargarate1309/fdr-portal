@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from .bank_service import verify_fdr
 from .forms import FDRForm
 from .models import AuditLog, FDR, ReleaseRequest
+from .roles import can_approve, can_verify, role_label
 
 
 def visible_fdrs(user):
@@ -26,18 +27,37 @@ def visible_fdrs(user):
 
 
 def log(user, action, fdr=None, detail=""):
-    AuditLog.objects.create(user=user, action=action, fdr=fdr, detail=detail)
+    """Every action is stored with the role of the person who did it."""
+    AuditLog.objects.create(user=user, action=action, fdr=fdr,
+                            detail=f"[{role_label(user)}] {detail}".strip())
 
 
-def officer_required(view):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_staff:
-            messages.error(request, "Only AICTE officers can do that.")
-            return redirect("dashboard")
-        return view(request, *args, **kwargs)
-    wrapper.__name__ = view.__name__
-    return wrapper
+def _role_required(check, message):
+    def decorator(view):
+        @login_required
+        def wrapper(request, *args, **kwargs):
+            if not check(request.user):
+                messages.error(request, message)
+                return redirect("dashboard")
+            return view(request, *args, **kwargs)
+        wrapper.__name__ = view.__name__
+        return wrapper
+    return decorator
+
+
+# AICTE staff (any internal role): reports, audit trail, release list
+officer_required = _role_required(
+    lambda u: u.is_staff, "Only AICTE officials can open that page.")
+# Scrutiny Officer only: verify / flag / bank verification
+scrutiny_required = _role_required(
+    can_verify, "Only a Scrutiny Officer can verify or flag FDRs.")
+# Approving Authority only: approve / reject release requests
+approver_required = _role_required(
+    can_approve, "Only the Approving Authority can approve or reject release requests.")
+# Institutions only: renew FDRs and request release
+institution_required = _role_required(
+    lambda u: (not u.is_staff) and getattr(u, "institution", None) is not None,
+    "Only institutions can do that.")
 
 
 @login_required
@@ -115,7 +135,7 @@ def fdr_detail(request, pk):
     })
 
 
-@officer_required
+@scrutiny_required
 @require_POST
 def fdr_verify(request, pk):
     fdr = get_object_or_404(FDR, pk=pk)
@@ -136,7 +156,7 @@ def fdr_verify(request, pk):
     return redirect("fdr_detail", pk=pk)
 
 
-@officer_required
+@scrutiny_required
 @require_POST
 def fdr_bank_verify(request, pk):
     fdr = get_object_or_404(FDR, pk=pk, status=FDR.ACTIVE)
@@ -158,7 +178,7 @@ def fdr_bank_verify(request, pk):
     return redirect("fdr_detail", pk=pk)
 
 
-@login_required
+@institution_required
 def fdr_renew(request, pk):
     old = get_object_or_404(visible_fdrs(request.user), pk=pk, status=FDR.ACTIVE)
     initial = {"institution": old.institution, "bank_name": old.bank_name, "amount": old.amount}
@@ -178,7 +198,7 @@ def fdr_renew(request, pk):
         "form": form, "title": f"Renew / replace FDR {old.fdr_number}"})
 
 
-@login_required
+@institution_required
 @require_POST
 def release_request(request, pk):
     fdr = get_object_or_404(visible_fdrs(request.user), pk=pk, status=FDR.ACTIVE)
@@ -200,7 +220,7 @@ def release_list(request):
     return render(request, "release_list.html", {"reqs": reqs})
 
 
-@officer_required
+@approver_required
 @require_POST
 def release_decide(request, pk):
     rr = get_object_or_404(ReleaseRequest, pk=pk, status=ReleaseRequest.PENDING)

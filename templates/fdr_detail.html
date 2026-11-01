@@ -18,8 +18,8 @@
 {% if fdr.renewed_from %}<tr><th>Renewal of</th><td><a href="{% url 'fdr_detail' fdr.renewed_from.pk %}">{{ fdr.renewed_from.fdr_number }}</a></td></tr>{% endif %}
 </table></div>
 
-{% if user.is_staff and fdr.status == "ACTIVE" %}
-<div class="card"><h2>Officer scrutiny</h2>
+{% if can_verify and fdr.status == "ACTIVE" %}
+<div class="card"><h2>Scrutiny (Scrutiny Officer)</h2>
 <form class="row" method="post" action="{% url 'fdr_verify' fdr.pk %}">{% csrf_token %}
 <input name="remarks" placeholder="Remarks (optional)" size="40">
 <button class="btn green" name="action" value="verify">Mark confirmed by bank</button>
@@ -30,7 +30,7 @@
 </form></div>
 {% endif %}
 
-{% if fdr.status == "ACTIVE" %}
+{% if fdr.status == "ACTIVE" and not user.is_staff %}
 <div class="grid2">
 <div class="card"><h2>Renewal / replacement</h2>
 <p class="empty">Submit a renewed or replacement FDR. The old one is marked Renewed and history is kept.</p>
@@ -46,11 +46,16 @@
 {% for r in requests %}
 <p><span class="badge {{ r.status|lower }}">{{ r.get_status_display }}</span>
 {{ r.reason }} <span class="empty">- {{ r.requested_by.username }}, {{ r.requested_at|date:"d M Y" }}</span></p>
-{% if r.status == "PENDING" and user.is_staff %}
-<form class="row" method="post" action="{% url 'release_decide' r.pk %}">{% csrf_token %}
-<input name="remarks" placeholder="Remarks" size="40">
-<button class="btn green" name="decision" value="approve">Approve release</button>
-<button class="btn red" name="decision" value="reject">Reject</button></form>{% endif %}
+{% if r.status == "PENDING" %}
+  {% if can_approve %}
+  <form class="row" method="post" action="{% url 'release_decide' r.pk %}">{% csrf_token %}
+  <input name="remarks" placeholder="Remarks" size="40">
+  <button class="btn green" name="decision" value="approve">Approve release</button>
+  <button class="btn red" name="decision" value="reject">Reject</button></form>
+  {% elif user.is_staff %}
+  <p class="empty">Waiting for decision by the Approving Authority.</p>
+  {% endif %}
+{% endif %}
 {% if r.remarks and r.status != "PENDING" %}<p class="empty">Officer remarks: {{ r.remarks }}</p>{% endif %}
 {% empty %}<p class="empty">No release requests.</p>{% endfor %}</div>
 
